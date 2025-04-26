@@ -31,9 +31,10 @@ jobs:
         working-directory: frontend
         run: npm run build
         env:
-          CI: false
-          REACT_APP_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          REACT_APP_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+            CI: false
+            REACT_APP_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}  # Kluczowa linia!
+            REACT_APP_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}  # Kluczowa linia!
+        
           
       - name: Deploy to Azure
         uses: Azure/static-web-apps-deploy@v1

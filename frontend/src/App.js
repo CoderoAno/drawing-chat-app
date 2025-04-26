@@ -7,11 +7,14 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_KEY;
 
 // Sprawdź, czy zmienne istnieją (dodaj tę część)
-if (!supabaseUrl || !supabaseKey) {
+if (!process.env.REACT_APP_SUPABASE_URL || !process.env.REACT_APP_SUPABASE_KEY) {
   throw new Error("Brak konfiguracji Supabase w zmiennych środowiskowych!");
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_KEY
+);
 
 function App() {
   const [nick, setNick] = useState(localStorage.getItem('nick') || '');
