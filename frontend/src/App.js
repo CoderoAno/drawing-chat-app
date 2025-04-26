@@ -28,28 +28,43 @@ function App() {
 
   // Subskrypcja zmian w czasie rzeczywistym
   useEffect(() => {
-    // Subskrybuj zmiany w wiadomościach
-    const messagesSubscription = supabase
-      .channel('custom-all-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
-        fetchMessages();
-      })
+    const messagesChannel = supabase
+      .channel('messages-channel')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages' 
+        }, 
+        (payload) => {
+          setMessages(prev => [payload.new, ...prev]);
+        }
+      )
+      .subscribe((status, err) => {
+        if (err) console.error("Błąd subskrypcji wiadomości:", err);
+        if (status === 'SUBSCRIBED') console.log("Nasłuchiwanie wiadomości!");
+      });
+  
+    const drawingsChannel = supabase
+      .channel('drawings-channel')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'drawings' 
+        },
+        (payload) => {
+          setDrawings(prev => [payload.new, ...prev]);
+        }
+      )
       .subscribe();
-
-    // Subskrybuj zmiany w rysunkach
-    const drawingsSubscription = supabase
-      .channel('custom-all-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'drawings' }, () => {
-        fetchDrawings();
-      })
-      .subscribe();
-
+  
     return () => {
-      messagesSubscription.unsubscribe();
-      drawingsSubscription.unsubscribe();
+      messagesChannel.unsubscribe();
+      drawingsChannel.unsubscribe();
     };
   }, []);
-
+  
   const fetchMessages = async () => {
     const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
     setMessages(data);
@@ -69,19 +84,26 @@ function App() {
     
     await supabase
       .from('messages')
-      .insert([{ nick, text: message }]);
-    
-    setMessage('');
+      .insert([{ 
+        nick, 
+        text: message,
+        created_at: new Date().toISOString()
+      }]);
   };
-
+  
   const saveDrawing = async () => {
     if (!canvasRef.current || !nick.trim()) return;
     const data = canvasRef.current.getSaveData();
     
     await supabase
       .from('drawings')
-      .insert([{ nick, data }]);
+      .insert([{ 
+        nick, 
+        data,
+        created_at: new Date().toISOString()
+      }]);
   };
+  
 
   // Przełączanie gumki
   const toggleEraser = () => {
