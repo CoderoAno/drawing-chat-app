@@ -2,11 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import CanvasDraw from "react-canvas-draw";
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_KEY
-);
+// Zmienne środowiskowe powinny być dostępne przez process.env w React
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_KEY;
 
+// Sprawdź, czy zmienne istnieją (dodaj tę część)
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error("Brak konfiguracji Supabase w zmiennych środowiskowych!");
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function App() {
   const [nick, setNick] = useState(localStorage.getItem('nick') || '');
