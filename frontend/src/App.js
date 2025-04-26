@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import CanvasDraw from "react-canvas-draw";
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_KEY
+);
+
 
 function App() {
   const [nick, setNick] = useState(localStorage.getItem('nick') || '');
@@ -9,65 +16,63 @@ function App() {
   const [isErasing, setIsErasing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [showCursor, setShowCursor] = useState(false);
-
-  // Używamy ref do CanvasDraw, by mieć dostęp do instancji
   const canvasRef = useRef(null);
 
-  // Inicjalizacja białego tła po zamontowaniu
+  // Subskrypcja zmian w czasie rzeczywistym
   useEffect(() => {
-    if (canvasRef.current) {
-      const canvasInstance = canvasRef.current.canvas;
-      const drawingCanvas = canvasInstance.drawing;
-      const ctx = drawingCanvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    }
-  }, [canvasRef]);
+    // Subskrybuj zmiany w wiadomościach
+    const messagesSubscription = supabase
+      .channel('custom-all-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        fetchMessages();
+      })
+      .subscribe();
 
-  useEffect(() => {
-    fetch('/api/messages')
-      .then(r => r.json())
-      .then(setMessages);
+    // Subskrybuj zmiany w rysunkach
+    const drawingsSubscription = supabase
+      .channel('custom-all-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drawings' }, () => {
+        fetchDrawings();
+      })
+      .subscribe();
 
-    fetch('/api/drawings')
-      .then(r => r.json())
-      .then(setDrawings);
+    return () => {
+      messagesSubscription.unsubscribe();
+      drawingsSubscription.unsubscribe();
+    };
   }, []);
+
+  const fetchMessages = async () => {
+    const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
+    setMessages(data);
+  };
+
+  const fetchDrawings = async () => {
+    const { data } = await supabase.from('drawings').select('*').order('created_at', { ascending: false });
+    setDrawings(data);
+  };
 
   const saveNick = () => {
     localStorage.setItem('nick', nick);
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!message.trim() || !nick.trim()) return;
-
-    fetch('/api/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ nick, text: message })
-    })
-      .then(() => {
-        setMessages([...messages, { nick, text: message }]);
-        setMessage('');
-      });
+    
+    await supabase
+      .from('messages')
+      .insert([{ nick, text: message }]);
+    
+    setMessage('');
   };
 
-  const saveDrawing = () => {
+  const saveDrawing = async () => {
     if (!canvasRef.current || !nick.trim()) return;
-
     const data = canvasRef.current.getSaveData();
-    fetch('/api/drawings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ nick, data })
-    })
-      .then(() => {
-        setDrawings([...drawings, { nick, data }]);
-      });
+    
+    await supabase
+      .from('drawings')
+      .insert([{ nick, data }]);
   };
 
   // Przełączanie gumki
